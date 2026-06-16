@@ -72,6 +72,7 @@ body::before{
 }
 .header-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 .header-logo{
   font-family:'Bebas Neue',sans-serif;
   font-size:26px;letter-spacing:2px;line-height:1;
@@ -897,6 +898,19 @@ body::before{
 <!-- TOAST -->
 <div id="toast">✅ ¡Servicio guardado!</div>
 
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#141419;border:1px solid #2a2a3c;border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center;animation:fadeIn .2s ease">
+    <div style="font-size:32px;margin-bottom:12px">🗑</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:#e8e8f0;margin-bottom:8px">¿Eliminar servicio?</div>
+    <div style="font-size:12px;color:#5a5a72;margin-bottom:20px;line-height:1.5" id="cm-msg">Esta acción no se puede deshacer.</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="_confirmResolve&&_confirmResolve(false)" style="flex:1;padding:12px;border-radius:8px;border:1px solid #2a2a3c;background:transparent;color:#5a5a72;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>
+      <button onclick="_confirmResolve&&_confirmResolve(true)" style="flex:1;padding:12px;border-radius:8px;border:1px solid rgba(255,96,48,.35);background:rgba(255,96,48,.12);color:#ff6030;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <!-- FIXED SEND -->
 <div class="send-fixed" id="sendBar">
   <div class="send-fixed-inner">
@@ -965,6 +979,23 @@ function copyShareUrl() {
     showToast('🔗 ¡Enlace copiado!');
   });
 }
+/* ── CONFIRM MODAL ── */
+let _confirmResolve = null;
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    _confirmResolve = r => {
+      document.getElementById('confirm-modal').style.display = 'none';
+      _confirmResolve = null;
+      resolve(r);
+    };
+    if(msg) document.getElementById('cm-msg').textContent = msg;
+    document.getElementById('confirm-modal').style.display = 'flex';
+  });
+}
+// Cerrar modal con Escape
+document.addEventListener('keydown', e => { if(e.key==='Escape' && _confirmResolve) _confirmResolve(false); });
+document.getElementById('confirm-modal').addEventListener('click', e => { if(e.target===document.getElementById('confirm-modal') && _confirmResolve) _confirmResolve(false); });
+
 let _toastTimer = null;
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1053,7 +1084,9 @@ function buildDynamicTabs() {
 
 /* ── TAB SWITCHING ── */
 function allTabIds() {
-  const extras = loadServices().map(s => 'extra-'+s.id);
+  // Lee las pestañas dinámicas desde el DOM (ya sincronizado por buildDynamicTabs)
+  // en lugar de volver a parsear localStorage en cada cambio de pestaña
+  const extras = [...document.querySelectorAll('.tab-dynamic')].map(t => t.id.replace('tab-',''));
   return STATIC_TABS.concat(extras).concat(['agregar']);
 }
 function showTab(name) {
@@ -1161,6 +1194,7 @@ function enviarWA() {
   m += '🛒 _Catálogo: https://wa.me/c/5218712318050_\n';
   m += '⏳ _Solicito cotización para los servicios indicados._';
 
+  if(m.length > 3000) { showToast('⚠️ El mensaje es muy largo. Acorta las notas e intenta de nuevo.'); return; }
   window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(m),'_blank','noopener,noreferrer');
 }
 
@@ -1209,8 +1243,9 @@ function saveService() {
   showTab('extra-'+id);
 }
 
-function deleteServiceFromTab(id) {
-  if(!confirm('¿Eliminar este servicio?')) return;
+async function deleteServiceFromTab(id) {
+  const ok = await showConfirm('Esta acción no se puede deshacer.');
+  if(!ok) return;
   const services = loadServices().filter(s=>s.id!==id);
   saveServices(services);
   buildDynamicTabs();
