@@ -14,7 +14,7 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
   }
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alarmas Reset — Cotizaciones</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
@@ -359,7 +359,7 @@ body::before{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 7 10-7"/></svg>
         anngeldb@gmail.com
       </a>
-      <a class="contact-chip catalog-chip" href="https://wa.me/c/5218712318050" target="_blank">
+      <a class="contact-chip catalog-chip" href="https://wa.me/c/5218712318050" target="_blank" rel="noopener noreferrer">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6H5a1 1 0 00-1 1v10a1 1 0 001 1h14a1 1 0 001-1V7a1 1 0 00-1-1zm-9 9H7v-2h3v2zm0-4H7V9h3v2zm8 4h-6v-2h6v2zm0-4h-6V9h6v2z"/></svg>
         Ver Catálogo
       </a>
@@ -913,6 +913,9 @@ let currentTab = 'pantallas';
 let pendingOptions = [];
 const STATIC_TABS = ['pantallas','camaras','alarmas','gps','luces'];
 
+/* ── ESCAPE HTML (previene XSS al inyectar en innerHTML) ── */
+function esc(s){ if(s==null)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 /* ── Persistencia: URL hash + localStorage ── */
 function loadServices() {
   // Primero intenta cargar desde URL hash (tiene prioridad)
@@ -962,12 +965,14 @@ function copyShareUrl() {
     showToast('🔗 ¡Enlace copiado!');
   });
 }
+let _toastTimer = null;
 function showToast(msg) {
   const t = document.getElementById('toast');
   if(!t) return;
   t.textContent = msg || '✅ ¡Guardado!';
   t.classList.add('show');
-  setTimeout(()=> t.classList.remove('show'), 2800);
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>{ t.classList.remove('show'); _toastTimer=null; }, 2800);
 }
 
 /* ── BUILD DYNAMIC TABS & PANELS ── */
@@ -985,7 +990,7 @@ function buildDynamicTabs() {
     const tab = document.createElement('div');
     tab.className = 'tab tab-dynamic';
     tab.id = 'tab-extra-'+svc.id;
-    tab.innerHTML = `<span class="tab-icon">${svc.icon}</span> ${svc.name}`;
+    tab.innerHTML = `<span class="tab-icon">${esc(svc.icon)}</span> ${esc(svc.name)}`;
     tab.onclick = () => showTab('extra-'+svc.id);
     tabsScroll.insertBefore(tab, addTab);
 
@@ -1018,15 +1023,15 @@ function buildDynamicTabs() {
       </div>
       <div class="sect">
         <div class="sect-head">
-          <div class="sect-ico">${svc.icon}</div>
-          <div class="sect-title">${svc.name}</div>
+          <div class="sect-ico">${esc(svc.icon)}</div>
+          <div class="sect-title">${esc(svc.name)}</div>
           <div class="sect-badge">${svc.options.length} OPC.</div>
         </div>
         <div class="items-list">
           ${svc.options.map(opt => `
-            <div class="item" onclick="sel(this,'${tid}')" data-label="${opt}">
+            <div class="item" onclick="sel(this,'${tid}')" data-label="${esc(opt)}">
               <div class="chk"></div>
-              <div class="item-text"><div class="item-name">${opt}</div></div>
+              <div class="item-text"><div class="item-name">${esc(opt)}</div></div>
               <span class="item-tag tag-c">OPC</span>
             </div>`).join('')}
         </div>
@@ -1132,7 +1137,7 @@ function enviarWA() {
     .map(el => '✅ '+el.getAttribute('data-label'));
 
   if(!nombre && selected.length===0) {
-    alert('Llena al menos tu nombre o selecciona una opción.');
+    showToast('⚠️ Llena tu nombre o selecciona al menos una opción');
     return;
   }
 
@@ -1143,8 +1148,8 @@ function enviarWA() {
   if(nombre)   m += '• Nombre: '+nombre+'\n';
   if(tel)      m += '• Teléfono: '+tel+'\n';
   if(vehiculo) m += '• Vehículo: '+vehiculo+'\n';
-  const anio  = getField('p_anio') || getField(tab+'_anio');
-  const color = getField('p_color');
+  const anio  = tab === 'pantallas' ? getField('p_anio') : getField(tab+'_anio');
+  const color = tab === 'pantallas' ? getField('p_color') : '';
   if(anio)  m += '• Año: '+anio+'\n';
   if(color) m += '• Color: '+color+'\n';
   m += '\n📋 *LO QUE ME INTERESA*\n';
@@ -1156,7 +1161,7 @@ function enviarWA() {
   m += '🛒 _Catálogo: https://wa.me/c/5218712318050_\n';
   m += '⏳ _Solicito cotización para los servicios indicados._';
 
-  window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(m),'_blank');
+  window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(m),'_blank','noopener,noreferrer');
 }
 
 /* ── ADD SERVICE FORM ── */
@@ -1178,7 +1183,7 @@ function renderOptionsPreview() {
   const wrap = document.getElementById('options_preview');
   if(pendingOptions.length===0){ wrap.innerHTML='<p>Las opciones aparecerán aquí</p>'; return; }
   wrap.innerHTML = pendingOptions.map((o,i)=>
-    `<span class="preview-tag">${o}<button onclick="removeOption(${i})">×</button></span>`
+    `<span class="preview-tag">${esc(o)}<button onclick="removeOption(${i})">×</button></span>`
   ).join('');
 }
 
@@ -1186,7 +1191,7 @@ function saveService() {
   const name = document.getElementById('new_service_name').value.trim();
   const icon = document.getElementById('new_service_icon').value.trim() || '🔧';
   if(!name || pendingOptions.length===0){
-    alert('Escribe el nombre y agrega al menos una opción.');
+    showToast('⚠️ Escribe el nombre y agrega al menos una opción');
     return;
   }
   const services = loadServices();
@@ -1223,7 +1228,7 @@ function renderSavedList() {
     services.map(s=>`
       <div class="saved-item">
         <div>
-          <div class="saved-item-name">${s.icon} ${s.name}</div>
+          <div class="saved-item-name">${esc(s.icon)} ${esc(s.name)}</div>
           <div class="saved-item-count">${s.options.length} opción(es)</div>
         </div>
         <button class="del-btn" onclick="deleteService(${s.id})">🗑</button>
