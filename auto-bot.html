@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Alarmas Reset — Cotización Automática</title>
+<meta name="description" content="Cotización automática de alarmas, GPS, pantallas y accesorios automotrices.">
+<meta name="theme-color" content="#00e5c8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<!-- Firebase SDK (mismo proyecto que Alarmas Reset Pro 2) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const cfg = {
+    apiKey:"AIzaSyAOUGIWvrPtdKf9pnoYlh3NIHHiBO_R7mE",
+    authDomain:"alarmas-reset-e3484.firebaseapp.com",
+    projectId:"alarmas-reset-e3484",
+    storageBucket:"alarmas-reset-e3484.firebasestorage.app",
+    messagingSenderId:"1096561116547",
+    appId:"1:1096561116547:web:b13df05c092785723aa2b6"
+  };
+  try {
+    const app = initializeApp(cfg);
+    const db  = getFirestore(app);
+    window._FB = { db, collection, addDoc, doc, getDoc, setDoc, ok:true };
+  } catch(e) { window._FB = { ok:false }; }
+  window.dispatchEvent(new Event('fbReady'));
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#070709;--surface:#0f0f14;--card:#141419;
+  --border:#1f1f2c;--border2:#2a2a3c;
+  --cyan:#00e5c8;--cyan2:rgba(0,229,200,.12);
+  --orange:#ff6030;--gold:#f0c040;
+  --text:#e8e8f0;--muted:#5a5a72;--muted2:#3a3a4e;
+  --green-wa:#25D366;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);font-family:'DM Sans',sans-serif;
+  color:var(--text);display:flex;flex-direction:column;
+  max-width:520px;margin:0 auto;position:relative;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.4
+}
+#app{position:relative;z-index:1;display:flex;flex-direction:column;height:100dvh}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hdr-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--cyan),#00a896);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:14px;color:#000;position:relative}
+.hdr-av::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;background:#2ecc71;border-radius:50%;border:2px solid var(--surface)}
+.hdr-info{flex:1;min-width:0}
+.hdr-name{font-family:'Syne';font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-status{font-size:10px;color:var(--cyan);font-family:'DM Mono';letter-spacing:.5px}
+.hdr-wa{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);display:flex;align-items:center;justify-content:center;color:var(--green-wa);text-decoration:none;transition:background .2s}
+.hdr-wa:hover{background:rgba(37,211,102,.2)}
+.hdr-wa svg{width:17px;height:17px;fill:currentColor}
+
+/* MESSAGES */
+.msgs{flex:1;overflow-y:auto;padding:12px 12px 4px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* BUBBLES */
+.row{display:flex;align-items:flex-end;gap:7px;animation:si .22s ease}
+@keyframes si{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.row.bot{flex-direction:row}
+.row.usr{flex-direction:row-reverse}
+.av-mini{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--cyan),#00a896);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:10px;color:#000}
+.bub{max-width:80%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.5}
+.bub.bot{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:3px}
+.bub.usr{background:var(--cyan2);border:1px solid rgba(0,229,200,.3);border-bottom-right-radius:3px}
+.bub strong{color:var(--cyan)}
+.bub em{color:var(--muted);font-style:normal;font-size:12px}
+.t{font-size:9px;color:var(--muted);margin-top:3px;padding:0 2px}
+.row.usr .t{text-align:right}
+
+/* TYPING */
+.typing{display:flex;align-items:center;gap:4px;padding:4px 2px}
+.typing span{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bo 1.1s infinite}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+@keyframes bo{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+/* SUMMARY CARD */
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:2px 0;min-width:220px}
+.sc-hdr{background:var(--cyan2);border-bottom:1px solid rgba(0,229,200,.2);padding:8px 12px}
+.sc-title{font-family:'Bebas Neue';font-size:14px;letter-spacing:1px}
+.sc-folio{font-family:'DM Mono';font-size:9px;color:var(--cyan);letter-spacing:1.5px;margin-top:1px}
+.sc-body{padding:10px 12px}
+.sc-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;gap:8px}
+.sc-row:last-child{border-bottom:none}
+.sc-row.tot{border-top:1px solid var(--border2);border-bottom:none;padding-top:8px;margin-top:4px}
+.sc-lbl{color:var(--muted);flex-shrink:0}
+.sc-val{text-align:right}
+.sc-val.price{color:var(--gold);font-family:'DM Mono';font-weight:700}
+.sc-val.big{font-size:15px;font-weight:700;color:var(--green-wa)}
+
+/* SUCCESS */
+.suc-wrap{text-align:center;padding:4px 0}
+.suc-icon{font-size:44px;display:block;margin-bottom:4px}
+.suc-title{font-family:'Bebas Neue';font-size:20px;letter-spacing:1.5px;margin:2px 0}
+.suc-folio{font-family:'DM Mono';font-size:15px;color:var(--cyan);letter-spacing:2px;font-weight:700}
+
+/* QUICK REPLIES */
+.qr-area{padding:8px 12px 10px;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface)}
+.qr-lbl{font-family:'DM Mono';font-size:8.5px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.qr-scroll{display:flex;flex-wrap:wrap;gap:5px;max-height:130px;overflow-y:auto}
+.qr-btn{padding:7px 13px;background:var(--card);border:1px solid var(--border2);border-radius:18px;color:var(--text);font-family:'DM Sans';font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qr-btn:active,.qr-btn:hover{background:var(--cyan2);border-color:rgba(0,229,200,.4);color:var(--cyan)}
+.qr-btn.ok{background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:var(--green-wa)}
+.qr-btn.wa{background:linear-gradient(135deg,#25D366,#128C7E);border:none;color:#fff;font-weight:700}
+.qr-btn.new{background:var(--cyan2);border-color:rgba(0,229,200,.35);color:var(--cyan);font-weight:700}
+
+/* MULTISELECT */
+.ms-area{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto}
+.ms-opt{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:9px;cursor:pointer;transition:all .15s;text-align:left;width:100%}
+.ms-opt:hover{border-color:rgba(0,229,200,.3)}
+.ms-opt.sel{background:var(--cyan2);border-color:var(--cyan)}
+.ms-chk{width:18px;height:18px;border-radius:4px;flex-shrink:0;border:1.5px solid var(--muted2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.ms-opt.sel .ms-chk{background:var(--cyan);border-color:var(--cyan)}
+.ms-opt.sel .ms-chk::after{content:'✓';font-size:10px;color:#000;font-weight:900}
+.ms-lbl{flex:1;font-size:12.5px}
+.ms-price{font-family:'DM Mono';font-size:10px;color:var(--gold);flex-shrink:0}
+.ms-confirm{margin-top:6px;padding:9px;width:100%;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:9px;color:var(--green-wa);font-family:'Syne';font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.ms-confirm:hover{background:rgba(37,211,102,.15)}
+
+/* INPUT */
+.inp-area{display:flex;align-items:center;gap:7px;padding:8px 12px 14px;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface)}
+.inp-area.hidden{display:none}
+#ui{flex:1;padding:10px 13px;background:var(--card);border:1px solid var(--border2);border-radius:20px;color:var(--text);font-family:'DM Sans';font-size:13.5px;outline:none;transition:border-color .2s}
+#ui:focus{border-color:var(--cyan)}
+#ui::placeholder{color:var(--muted)}
+#sb{width:40px;height:40px;background:var(--cyan);border:none;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .2s,transform .1s}
+#sb:active{opacity:.8;transform:scale(.95)}
+#sb svg{width:16px;height:16px;fill:#000}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <header class="hdr">
+    <div class="hdr-av">AR</div>
+    <div class="hdr-info">
+      <div class="hdr-name">Alarmas Reset · Asesor Virtual</div>
+      <div class="hdr-status">● En línea — respuesta inmediata</div>
+    </div>
+    <a href="https://wa.me/528712318050" class="hdr-wa" target="_blank" rel="noopener" aria-label="WhatsApp">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    </a>
+  </header>
+
+  <div class="msgs" id="msgs"></div>
+
+  <div class="qr-area" id="qr-area" style="display:none">
+    <div class="qr-lbl" id="qr-lbl">Elige una opción</div>
+    <div id="qr-content"></div>
+  </div>
+
+  <div class="inp-area hidden" id="inp-area">
+    <input type="text" id="ui" autocomplete="off" autocorrect="off" autocapitalize="sentences" placeholder="Escribe aquí...">
+    <button id="sb" aria-label="Enviar">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CATÁLOGO MODULAR DE SERVICIOS Y PRECIOS
+// Agregar nuevos servicios aquí sin tocar el motor
+// ═══════════════════════════════════════
+const CAT = {
+  pantallas:{
+    label:'Pantalla Multimedia', icon:'🖥️',
+    q:'¿Qué tamaño de pantalla buscas para tu vehículo?',
+    opciones:[
+      {id:'p7', n:'7 pulgadas', p:2800},
+      {id:'p9', n:'9 pulgadas', p:3500},
+      {id:'p10',n:'10 pulgadas',p:4200},
+      {id:'p12',n:'12 pulgadas',p:5800},
+      {id:'p13',n:'13 pulgadas',p:6500},
+      {id:'prec',n:'Recoméndame la mejor opción',p:0}
+    ],
+    extras:[
+      {id:'aa',  n:'Android Auto Inalámbrico',  p:600},
+      {id:'r4',  n:'RAM 4 GB',                   p:400},
+      {id:'r8',  n:'RAM 8 GB',                   p:800},
+      {id:'ql',  n:'Display QLED',               p:500},
+      {id:'cr',  n:'Cámara de reversa HD',       p:400},
+      {id:'c360',n:'Sistema de cámara 360°',     p:1000}
+    ],
+    rec(a){ return a>=2020?'p10':a>=2016?'p9':'p7'; }
+  },
+  alarmas:{
+    label:'Alarma / Seguridad', icon:'🚨',
+    q:'¿Qué tipo de alarma necesitas?',
+    opciones:[
+      {id:'ab',  n:'Básica (protección + claxón)',    p:1200},
+      {id:'aapp',n:'Con control por app',               p:2200},
+      {id:'agps',n:'Con GPS integrado',                 p:3500},
+      {id:'apre',n:'Premium + sensores volumétricos',   p:4500}
+    ],
+    extras:[
+      {id:'seg', n:'Seguros eléctricos',   p:800},
+      {id:'enc', n:'Encendido remoto',      p:1200},
+      {id:'sens',n:'Sensores adicionales', p:400}
+    ],
+    rec(a){ return a>=2022?'apre':a>=2018?'aapp':'ab'; }
+  },
+  gps:{
+    label:'Rastreador GPS', icon:'📡',
+    q:'¿Qué tipo de rastreador GPS necesitas?',
+    opciones:[
+      {id:'gb',  n:'GPS básico',                      p:1500},
+      {id:'gapp',n:'GPS con app tiempo real',          p:2500},
+      {id:'gpre',n:'GPS premium + historial de rutas', p:3500}
+    ],
+    extras:[
+      {id:'geo',  n:'Geocercas ilimitadas', p:300},
+      {id:'panic',n:'Botón de pánico',      p:350}
+    ],
+    rec(){ return 'gapp'; }
+  },
+  camaras:{
+    label:'Cámaras', icon:'📷',
+    q:'¿Qué sistema de cámaras te interesa?',
+    opciones:[
+      {id:'cr', n:'Cámara de reversa HD',     p:800},
+      {id:'cfr',n:'Frontal + Reversa HD',     p:1500},
+      {id:'c360',n:'Sistema 360° (4 cámaras)',p:2800},
+      {id:'dvr',n:'DVR Dashcam completo',     p:3500}
+    ],
+    extras:[
+      {id:'nv',n:'Visión nocturna mejorada',p:300}
+    ],
+    rec(){ return 'cr'; }
+  },
+  luces:{
+    label:'Luces LED', icon:'💡',
+    q:'¿Qué tipo de iluminación LED te interesa?',
+    opciones:[
+      {id:'li', n:'Interiores básicas',    p:600},
+      {id:'rgb',n:'Tiras RGB multicolor',  p:900},
+      {id:'lex',n:'Kit exterior completo', p:1800},
+      {id:'lf', n:'Luces de freno LED',   p:450}
+    ],
+    extras:[],
+    rec(){ return 'rgb'; }
+  }
+};
+
+// ═══════════════════════════════════════
+// ESTADO DE CONVERSACIÓN
+// ═══════════════════════════════════════
+const S = {
+  step:'welcome',
+  cat:null,
+  v:{marca:'',modelo:'',año:0,raw:''},
+  main:null,
+  extras:[],
+  c:{nombre:'',tel:''},
+  notas:'',
+  prods:[],
+  total:0,
+  folio:''
+};
+
+// ═══════════════════════════════════════
+// HELPERS UI
+// ═══════════════════════════════════════
+const $=id=>document.getElementById(id);
+function tnow(){ return new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); }
+function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
+function fmt(n){ return '$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function sb(){ const e=$('msgs'); setTimeout(()=>{e.scrollTop=e.scrollHeight;},80); }
+
+function addMsg(role,html,showTime=true){
+  const wrap=$('msgs');
+  const row=document.createElement('div');
+  row.className='row '+role;
+  if(role==='bot'){
+    row.innerHTML=`<div class="av-mini">AR</div><div><div class="bub bot">${html}</div>${showTime?`<div class="t">${tnow()}</div>`:''}</div>`;
+  } else {
+    row.innerHTML=`<div><div class="bub usr">${html}</div>${showTime?`<div class="t">${tnow()}</div>`:''}</div>`;
+  }
+  wrap.appendChild(row);
+  sb();
+}
+
+function showTyping(){
+  const wrap=$('msgs');
+  const row=document.createElement('div');
+  row.className='row bot'; row.id='typr';
+  row.innerHTML='<div class="av-mini">AR</div><div class="bub bot"><div class="typing"><span></span><span></span><span></span></div></div>';
+  wrap.appendChild(row); sb();
+}
+function hideTyping(){ const t=$('typr'); if(t)t.remove(); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function botSay(html,delay=700){ showTyping(); await sleep(delay); hideTyping(); addMsg('bot',html); }
+
+function clearQR(){ $('qr-area').style.display='none'; $('qr-content').innerHTML=''; }
+
+function showQR(opts,lbl,cb){
+  $('qr-area').style.display='block';
+  $('qr-lbl').textContent=lbl||'Elige una opción';
+  const cont=$('qr-content');
+  cont.innerHTML=''; cont.className='qr-scroll';
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='qr-btn'+(o.cls?' '+o.cls:'');
+    b.textContent=o.label;
+    b.onclick=()=>{ clearQR(); cb(o); };
+    cont.appendChild(b);
+  });
+}
+
+function showMS(opts,lbl,cb){
+  $('qr-area').style.display='block';
+  $('qr-lbl').textContent=lbl||'Extras opcionales';
+  const cont=$('qr-content');
+  cont.innerHTML=''; cont.className='';
+  const sel=new Set();
+  const wrap=document.createElement('div');
+  wrap.className='ms-area';
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='ms-opt';
+    b.innerHTML=`<div class="ms-chk"></div><span class="ms-lbl">${esc(o.label)}</span>${o.precio?`<span class="ms-price">+${fmt(o.precio)}</span>`:'`'}`;
+    b.onclick=()=>{
+      if(o.id==='none'){
+        sel.clear(); sel.add('none');
+        wrap.querySelectorAll('.ms-opt').forEach(x=>x.classList.remove('sel'));
+      } else {
+        sel.delete('none');
+        if(sel.has(o.id)){ sel.delete(o.id); b.classList.remove('sel'); }
+        else { sel.add(o.id); b.classList.add('sel'); }
+        const nb=wrap.querySelector('[data-none]');
+        if(nb) nb.classList.remove('sel');
+      }
+      if(o.id==='none') b.classList.add('sel');
+    };
+    if(o.id==='none') b.dataset.none='1';
+    wrap.appendChild(b);
+  });
+  const conf=document.createElement('button');
+  conf.className='ms-confirm';
+  conf.textContent='✓ Continuar';
+  conf.onclick=()=>{
+    const res=sel.has('none')?[]:  [...sel].map(id=>opts.find(o=>o.id===id)).filter(Boolean);
+    clearQR(); cb(res);
+  };
+  cont.appendChild(wrap);
+  cont.appendChild(conf);
+}
+
+function showInp(ph){
+  $('inp-area').classList.remove('hidden');
+  $('ui').placeholder=ph||'Escribe aquí...';
+  $('ui').value='';
+  setTimeout(()=>$('ui').focus(),200);
+}
+function hideInp(){ $('inp-area').classList.add('hidden'); }
+
+// ═══════════════════════════════════════
+// PARSERS INTELIGENTES
+// ═══════════════════════════════════════
+function parseVeh(raw){
+  const t=raw.trim();
+  const aM=t.match(/\b(19[5-9]\d|20[0-2]\d)\b/);
+  const año=aM?+aM[0]:0;
+  const sin=t.replace(/\b(19[5-9]\d|20[0-2]\d)\b/,'').replace(/\s+/g,' ').trim();
+  const pts=sin.split(/[\s,]+/).filter(Boolean);
+  let marca=pts[0]||''; marca=marca?marca[0].toUpperCase()+marca.slice(1).toLowerCase():'';
+  let modelo=pts.slice(1).join(' ');
+  modelo=modelo?modelo.split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1).toLowerCase():'').join(' '):'`';
+  return {marca,modelo,año,raw:t};
+}
+
+function parseCont(raw){
+  const t=raw.trim();
+  const tM=t.match(/(\d[\d\s\-\.]{7,13}\d)/);
+  const tel=tM?tM[0].replace(/[\s\-\.]/g,''):'`';
+  let nombre=t.replace(/(\d[\d\s\-\.]{7,13}\d)/,'').replace(/[-,|·]/g,'').replace(/\s+/g,' ').trim();
+  return {nombre:nombre||'Cliente',tel};
+}
+
+// ═══════════════════════════════════════
+// MOTOR DE CONVERSACIÓN
+// ═══════════════════════════════════════
+async function iniciar(){
+  await sleep(250);
+  await botSay(`¡Hola! 👋 Bienvenido a <strong>Alarmas Reset</strong> · Solo Led Auto<br><em>Ing. Luis Ángel Díaz Bernal · Torreón, Coahuila</em>`,450);
+  await sleep(150);
+  await botSay(`Soy tu asesor virtual. En menos de <strong>2 minutos</strong> tu cotización quedará registrada y tu asesor la verá al instante. 🚀`,800);
+  showQR([
+    {label:'🖥️ Pantalla Multimedia',  value:'pantallas'},
+    {label:'🚨 Alarma / Seguridad',    value:'alarmas'},
+    {label:'📡 Rastreador GPS',         value:'gps'},
+    {label:'📷 Cámaras',               value:'camaras'},
+    {label:'💡 Luces LED',             value:'luces'},
+    {label:'💬 Hablar con el técnico', value:'human'},
+  ],'¿Qué servicio necesitas?', async o=>{
+    addMsg('usr',o.label);
+    if(o.value==='human'){
+      await botSay(`¡Claro! El Ing. Luis Ángel está disponible en WhatsApp al <strong>871 231-8050</strong>. 📲`,600);
+      showQR([
+        {label:'Abrir WhatsApp ahora', value:'wa', cls:'wa'},
+        {label:'↩ Volver al menú',    value:'back', cls:'new'},
+      ],'',async o2=>{
+        if(o2.value==='wa') window.open('https://wa.me/528712318050','_blank');
+        else { clearQR(); await iniciar(); }
+      });
+      return;
+    }
+    S.cat=o.value; S.step='veh';
+    await stepVeh();
+  });
+}
+
+async function stepVeh(){
+  const c=CAT[S.cat];
+  await botSay(`${c.icon} Perfecto, te cotizo la <strong>${c.label}</strong>.<br><br>¿Cuál es la <strong>marca, modelo y año</strong> de tu vehículo?<br><em>Ejemplo: Nissan Versa 2020 &nbsp;·&nbsp; Toyota RAV4 2019</em>`,950);
+  showInp('Ej: Nissan Versa 2020');
+  S.step='veh';
+}
+
+async function stepMain(){
+  const c=CAT[S.cat], v=S.v;
+  const recId=c.rec(v.año);
+  const recIt=c.opciones.find(o=>o.id===recId);
+  let recMsg='';
+  if(recIt&&recIt.p>0){
+    recMsg=`<br><em>⭐ Para tu vehículo recomiendo: <strong>${recIt.n}</strong> — ${fmt(recIt.p)}</em>`;
+  }
+  await botSay(`${c.q}${recMsg}`,800);
+  showQR(c.opciones.map(o=>({
+    label:o.p?`${o.n} · ${fmt(o.p)}`:o.n,
+    value:o.id, precio:o.p, nombre:o.n
+  })),'Selecciona el servicio principal', async o=>{
+    addMsg('usr',o.label);
+    if(o.value==='prec'&&recIt){
+      S.main=recIt;
+      await botSay(`Te recomiendo: <strong>${recIt.n}</strong> — ${fmt(recIt.p)} · ideal para tu tipo de vehículo.`,500);
+    } else {
+      S.main=c.opciones.find(x=>x.id===o.value)||{id:o.value,n:o.nombre||o.label,p:o.precio||0};
+    }
+    if(c.extras&&c.extras.length>0) await stepExtras();
+    else await stepContact();
+  });
+}
+
+async function stepExtras(){
+  const c=CAT[S.cat];
+  await botSay(`¿Agregarías alguno de estos servicios adicionales?<br><em>Puedes marcar varios</em>`,700);
+  showMS([
+    ...c.extras.map(e=>({id:e.id,label:e.n,precio:e.p})),
+    {id:'none',label:'No, solo el servicio anterior',precio:0}
+  ],'Extras opcionales', async sel=>{
+    S.extras=sel;
+    addMsg('usr',sel.length>0?`+ ${sel.map(e=>e.label).join(', ')}`:'Sin extras');
+    await stepContact();
+  });
+}
+
+async function stepContact(){
+  await botSay(`¡Casi listo! 🙌<br><br>¿Cuál es tu <strong>nombre</strong> y <strong>número de WhatsApp</strong>?<br><em>Ejemplo: María López · 871 123 4567</em>`,900);
+  showInp('Ej: María López - 871 123 4567');
+  S.step='cont';
+}
+
+async function stepNotas(){
+  await botSay(`¿Tienes alguna <strong>nota adicional</strong>?<br><em>Presupuesto, fecha preferida, preguntas...</em>`,700);
+  showQR([{label:'Sin notas, continuar →', value:'skip', cls:'ok'}],'',async ()=>{ await stepResumen(); });
+  showInp('Escribe una nota o toca "continuar"...');
+  S.step='notas';
+}
+
+async function stepResumen(){
+  hideInp();
+  const c=CAT[S.cat], v=S.v;
+  const vStr=[v.marca,v.modelo,v.año||''].filter(Boolean).join(' ')||'Vehículo';
+
+  S.prods=[];
+  if(S.main&&S.main.n){
+    S.prods.push({nombre:`${c.icon} ${S.main.n}`,costo:S.main.p||0,inversion:0,garantia:'6 meses'});
+  }
+  S.extras.forEach(e=>S.prods.push({nombre:e.label,costo:e.precio||0,inversion:0,garantia:'3 meses'}));
+  S.total=S.prods.reduce((s,p)=>s+(+p.costo||0),0);
+
+  const rows=S.prods.map(p=>`<div class="sc-row"><span class="sc-lbl">• ${esc(p.nombre)}</span><span class="sc-val price">${p.costo?fmt(p.costo):'A definir'}</span></div>`).join('');
+
+  const html=`
+  <div class="sc">
+    <div class="sc-hdr">
+      <div class="sc-title">PRE-COTIZACIÓN</div>
+      <div class="sc-folio">Revisa antes de enviar</div>
+    </div>
+    <div class="sc-body">
+      <div class="sc-row"><span class="sc-lbl">👤 Cliente</span><span class="sc-val">${esc(S.c.nombre)}</span></div>
+      <div class="sc-row"><span class="sc-lbl">📱 WhatsApp</span><span class="sc-val">${esc(S.c.tel)||'—'}</span></div>
+      <div class="sc-row"><span class="sc-lbl">🚗 Vehículo</span><span class="sc-val">${esc(vStr)}</span></div>
+      <div class="sc-row"><span class="sc-lbl">🔧 Servicio</span><span class="sc-val">${c.label}</span></div>
+      ${rows}
+      ${S.total>0?`<div class="sc-row tot"><span class="sc-lbl">💰 Total estimado</span><span class="sc-val big">${fmt(S.total)}</span></div>`:''}
+    </div>
+  </div>`;
+
+  await botSay(html,1000);
+  showQR([
+    {label:'✅ Confirmar y enviar', value:'ok', cls:'ok'},
+    {label:'✏️ Cambiar algo',       value:'edit'},
+  ],'¿Todo correcto?', async o=>{
+    if(o.value==='edit'){
+      addMsg('usr','Quiero cambiar algo');
+      await botSay('¿Qué deseas cambiar?',500);
+      showQR([
+        {label:'🔧 El servicio',   value:'srv'},
+        {label:'🚗 El vehículo',   value:'veh'},
+        {label:'📦 Los extras',    value:'ext'},
+        {label:'👤 Mis datos',     value:'cnt'},
+      ],'',async o2=>{
+        addMsg('usr',o2.label);
+        if(o2.value==='srv'){ Object.assign(S,{cat:null,main:null,extras:[],prods:[],total:0}); await iniciar(); }
+        else if(o2.value==='veh'){ S.step='veh'; await stepVeh(); }
+        else if(o2.value==='ext'&&CAT[S.cat].extras.length){ await stepExtras(); }
+        else { await stepContact(); }
+      });
+    } else {
+      addMsg('usr','✅ Confirmar');
+      await stepGuardar();
+    }
+  });
+}
+
+async function stepGuardar(){
+  clearQR(); hideInp();
+  await botSay(`⏳ Guardando tu cotización y notificando al asesor...`,500);
+  const folio=await guardar();
+  S.folio=folio;
+  const c=CAT[S.cat], v=S.v;
+  const vStr=[v.marca,v.modelo,v.año||''].filter(Boolean).join(' ');
+  const vigFmt=new Date(Date.now()+15*864e5).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+  const html=`
+  <div class="suc-wrap">
+    <span class="suc-icon">🎉</span>
+    <div class="suc-title">¡COTIZACIÓN ENVIADA!</div>
+    <div class="suc-folio">${folio}</div>
+  </div>
+  <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;line-height:1.6">
+    <strong>${esc(S.c.nombre)}</strong> · 🚗 ${esc(vStr)||'Vehículo'}<br>
+    ${S.total>0?`<strong style="color:var(--gold)">${fmt(S.total)} estimado</strong><br>`:''}
+    Válida hasta <strong>${vigFmt}</strong><br>
+    <em>El Ing. Luis Ángel te contactará pronto al ${esc(S.c.tel)||'tu número de WA'}</em>
+  </div>`;
+  await botSay(html,1200);
+  const waMsg=encodeURIComponent(
+    `*${folio} — Alarmas Reset*\n`+
+    `*Solo Led Auto · Ing. Luis Ángel*\n\n`+
+    `👤 ${S.c.nombre}\n`+
+    `🚗 ${vStr||'Vehículo'}\n\n`+
+    S.prods.map(p=>`• ${p.nombre}: ${p.costo?fmt(p.costo):'A definir'}`).join('\n')+
+    (S.total>0?`\n\n💰 *Total estimado: ${fmt(S.total)}*`:'')+
+    `\n📅 Válida hasta: ${vigFmt}`+
+    `\n📞 871-231-8050`
+  );
+  await sleep(300);
+  showQR([
+    {label:'📤 Compartir por WhatsApp', value:'wa',  cls:'wa'},
+    {label:'🔄 Nueva cotización',        value:'new', cls:'new'},
+  ],'', async o=>{
+    if(o.value==='wa'){
+      window.open(`https://wa.me/528712318050?text=${waMsg}`,'_blank');
+    } else {
+      Object.assign(S,{step:'welcome',cat:null,v:{marca:'',modelo:'',año:0,raw:''},
+        main:null,extras:[],c:{nombre:'',tel:''},notas:'',prods:[],total:0,folio:''});
+      showInp();
+      await botSay('¡Listo para otra cotización! 🚀',400);
+      await sleep(200);
+      await iniciar();
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// PROCESADOR DE INPUT
+// ═══════════════════════════════════════
+async function proc(txt){
+  if(!txt.trim()) return;
+  addMsg('usr',esc(txt));
+  $('ui').value='';
+  if(S.step==='veh'){
+    S.v=parseVeh(txt);
+    const vStr=[S.v.marca,S.v.modelo,S.v.año||''].filter(Boolean).join(' ');
+    if(vStr) await botSay(`🚗 <strong>${esc(vStr)}</strong> — ¡anotado!`,400);
+    await stepMain();
+  } else if(S.step==='cont'){
+    S.c=parseCont(txt);
+    if(!S.c.nombre&&!S.c.tel){
+      await botSay('¡Hmm, no pude leer bien tu nombre o teléfono! ¿Puedes escribirlo así?<br><em>Juan García - 871 123 4567</em>',600);
+      return;
+    }
+    await stepNotas();
+  } else if(S.step==='notas'){
+    S.notas=txt.trim();
+    clearQR();
+    await stepResumen();
+  }
+}
+
+// ═══════════════════════════════════════
+// GUARDAR EN FIREBASE (misma BD que Alarmas Reset Pro 2)
+// Escribe en colección 'ordenes' — aparece en la app de órdenes automáticamente
+// ═══════════════════════════════════════
+async function guardar(){
+  const yr=new Date().getFullYear();
+  const c=CAT[S.cat], v=S.v;
+  const vStr=[v.marca,v.modelo,v.año||''].filter(Boolean).join(' ').trim()||'Sin especificar';
+  let folio=`SOL-${yr}-${Date.now().toString().slice(-4)}`;
+
+  const orden={
+    // Schema nativo de alarmas-reset-pro2 (aparece automáticamente en la app)
+    cliente:`${S.c.nombre}${S.c.tel?' · WA: '+S.c.tel:''}`,
+    vehiculo:vStr,
+    fecha_instalacion:'',
+    fecha_pago:'',
+    total:S.total,
+    a_cuenta_total:0,
+    estado:'PENDIENTE',
+    recordatorios:`🤖 ${folio} | Servicio: ${c.label} | WA: ${S.c.tel||'—'} | Origen: Bot | ${S.notas||'Sin notas'}`,
+    productos:S.prods,
+    fecha_creacion:Date.now(),
+    // Metadatos del bot (para filtrar en app)
+    _bot:true,
+    _folio:folio,
+    _categoria:S.cat,
+    _tel:S.c.tel,
+    _total_estimado:S.total,
+    _origen:'chatbot-alarmasreset'
+  };
+
+  if(window._FB?.ok&&window._FB?.db){
+    try {
+      const {db,collection,addDoc,doc:fbDoc,getDoc,setDoc}=window._FB;
+      // Folio secuencial via contador Firestore
+      try {
+        const cRef=fbDoc(db,'contadores','bot_solicitudes');
+        const snap=await getDoc(cRef);
+        const num=(snap.exists()?snap.data().num||0:0)+1;
+        await setDoc(cRef,{num},{merge:true});
+        folio=`SOL-${yr}-${String(num).padStart(3,'0')}`;
+        orden.recordatorios=orden.recordatorios.replace(/SOL-\d{4}-\d+/,folio);
+        orden._folio=folio;
+      } catch(e){ /* usar folio de timestamp si falla el contador */ }
+      await addDoc(collection(db,'ordenes'),orden);
+    } catch(e){
+      console.warn('Firebase error:',e);
+      salvarLocal(orden);
+    }
+  } else {
+    salvarLocal(orden);
+  }
+  return folio;
+}
+
+function salvarLocal(ord){
+  try {
+    const prev=JSON.parse(localStorage.getItem('bot_solicitudes')||'[]');
+    prev.unshift({...ord,id:'loc_'+Date.now()});
+    localStorage.setItem('bot_solicitudes',JSON.stringify(prev.slice(0,50)));
+  } catch(e){}
+}
+
+// ═══════════════════════════════════════
+// EVENTOS + INICIO
+// ═══════════════════════════════════════
+$('sb').addEventListener('click',()=>{ const v=$('ui').value; if(v.trim()) proc(v); });
+$('ui').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); const v=$('ui').value; if(v.trim()) proc(v); } });
+iniciar();
+</script>
+</body>
+</html>
