@@ -1174,24 +1174,46 @@ function enviarWA() {
     return;
   }
 
-  let m = '🔧 *SOLICITUD DE COTIZACIÓN — ALARMAS RESET*\n';
-  m += '🏷️ *'+panelLabel+'*\n';
-  m += '━━━━━━━━━━━━━━━━━━\n\n';
-  m += '👤 *DATOS DEL CLIENTE*\n';
-  if(nombre)   m += '• Nombre: '+nombre+'\n';
-  if(tel)      m += '• Teléfono: '+tel+'\n';
-  if(vehiculo) m += '• Vehículo: '+vehiculo+'\n';
-  const anio  = tab === 'pantallas' ? getField('p_anio') : getField(tab+'_anio');
+  let m = '🔧 *SOLICITUD DE COTIZACIÓN — ALARMAS RESET*
+';
+  m += '🏷️ *'+panelLabel+'*
+';
+  m += '━━━━━━━━━━━━━━━━━━
+
+';
+  m += '👤 *DATOS DEL CLIENTE*
+';
+  if(nombre)   m += '• Nombre: '+nombre+'
+';
+  if(tel)      m += '• Teléfono: '+tel+'
+';
+  if(vehiculo) m += '• Vehículo: '+vehiculo+'
+';
+  const anio  = tab === 'pantallas' ? getField('p_anio') : (tab.startsWith('extra-') ? getField(tab+'_anio') : '');
   const color = tab === 'pantallas' ? getField('p_color') : '';
-  if(anio)  m += '• Año: '+anio+'\n';
-  if(color) m += '• Color: '+color+'\n';
-  m += '\n📋 *LO QUE ME INTERESA*\n';
-  if(selected.length>0) { m += selected.join('\n')+'\n'; }
-  else { m += '_(Por definir con el técnico)_\n'; }
-  if(notas) { m += '\n💬 *NOTAS*\n'+notas+'\n'; }
-  m += '\n━━━━━━━━━━━━━━━━━━\n';
-  m += '📲 _Ing. Luis Angel Díaz Bernal · Alarmas Reset / Solo Led Auto_\n';
-  m += '🛒 _Catálogo: https://wa.me/c/5218712318050_\n';
+  if(anio)  m += '• Año: '+anio+'
+';
+  if(color) m += '• Color: '+color+'
+';
+  m += '
+📋 *LO QUE ME INTERESA*
+';
+  if(selected.length>0) { m += selected.join('
+')+'
+'; }
+  else { m += '_(Por definir con el técnico)_
+'; }
+  if(notas) { m += '
+💬 *NOTAS*
+'+notas+'
+'; }
+  m += '
+━━━━━━━━━━━━━━━━━━
+';
+  m += '📲 _Ing. Luis Angel Díaz Bernal · Alarmas Reset / Solo Led Auto_
+';
+  m += '🛒 _Catálogo: https://wa.me/c/5218712318050_
+';
   m += '⏳ _Solicito cotización para los servicios indicados._';
 
   if(m.length > 3000) { showToast('⚠️ El mensaje es muy largo. Acorta las notas e intenta de nuevo.'); return; }
